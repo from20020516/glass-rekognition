@@ -11,16 +11,12 @@ import { Camera, useCameraDevices } from 'react-native-vision-camera'
 import Reanimated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 import { readFile, unlink } from 'react-native-fs'
 import Config from 'react-native-config'
-import { Buffer } from 'buffer'
+import axios from 'axios'
 import { format } from 'date-fns'
 import { Rekognition } from 'aws-sdk'
 
-const rekognition = new Rekognition({
-  region: 'ap-northeast-1',
-  credentials: {
-    accessKeyId: Config.AWS_ACCESS_KEY_ID,
-    secretAccessKey: Config.AWS_SECRET_ACCESS_KEY,
-  }
+const client = axios.create({
+  baseURL: Config.API_ENDPOINT,
 })
 
 const FaceRekognition = () => {
@@ -38,12 +34,8 @@ const FaceRekognition = () => {
       if (snapshot) {
         try {
           const blob = await readFile(snapshot?.path, 'base64')
-          const results = await rekognition.recognizeCelebrities({
-            Image: {
-              Bytes: Buffer.from(blob, 'base64')
-            }
-          }).promise()
-          setContent(`${time} ${results.CelebrityFaces?.[0]?.Name ?? ''}`)
+          const results = await client.post<Rekognition.RecognizeCelebritiesResponse>('/celeb', blob)
+          setContent(`${time} ${results.data.CelebrityFaces?.[0]?.Name ?? ''}`)
         } catch (error) {
           console.error(error)
           setContent(`${time} ${(error as Error).message}`)
