@@ -8,8 +8,10 @@
     "start": "react-native start",
     "test": "jest",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "android:build": "npm run clean && gradlew assembleRelease",
-    "android:clean": "cd android && gradlew clean"
+    "android:build": "npm run android:clean && cd android && gradlew assembleRelease",
+    "android:clean": "cd android && gradlew clean",
+    "android:adb:install": "adb install ./android/app/build/outputs/apk/release/app-release.apk",
+    "android:adb:uninstall": "adb uninstall com.glass"
   },
   "dependencies": {
     "aws-sdk": "^2.1116.0",
