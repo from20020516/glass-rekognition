@@ -19,6 +19,49 @@ const client = axios.create({
   baseURL: Config.API_ENDPOINT,
 })
 
+interface WikiData {
+  entities: {
+    [id: string]: {
+      pageid: number
+      ns: number
+      title: string
+      lastrevid: number
+      modified: string
+      type: string
+      id: string
+      labels: {
+        [lang: string]: {
+          language: string
+          value: string /* name */
+        }
+      }
+      descriptions: {
+        [lang: string]: {
+          language: string
+          value: string /* description */
+        }
+      }
+    }
+  }
+  success: number
+}
+
+const getWikiData = async (urls: string[]) => {
+  try {
+    const id = urls.find(url => url.includes('wikidata.org'))?.split('/').pop()!
+    const wikiData = await axios.get<WikiData>(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${id}&format=json&languages=ja`)
+    return {
+      name: wikiData.data.entities[id].labels.ja.value,
+      description: wikiData.data.entities[id].descriptions.ja.value
+    }
+  } catch {
+    return {
+      name: undefined,
+      description: undefined
+    }
+  }
+}
+
 const FaceRekognition = () => {
   const devices = useCameraDevices()
   const device = devices.back
@@ -34,8 +77,22 @@ const FaceRekognition = () => {
       if (snapshot) {
         try {
           const blob = await readFile(snapshot?.path, 'base64')
-          const results = await client.post<Rekognition.RecognizeCelebritiesResponse>('/celeb', blob)
-          setContent(`${time} ${results.data.CelebrityFaces?.[0]?.Name ?? ''}`)
+          const results = (await client.post<Rekognition.RecognizeCelebritiesResponse>('/celeb', blob)).data.CelebrityFaces?.[0]
+
+          const { Width, Height, Left, Top } = results?.Face?.BoundingBox ?? {}
+          faceRange.value = {
+            top: 360 * Number(Top),
+            bottom: 360 * Number(Height),
+            left: 640 * Number(Left),
+            right: 640 * Number(Width)
+          }
+
+          if (results) {
+            const { name, description } = await getWikiData(results.Urls!)
+            setContent(`${time} ${name ?? results.Name} (${Math.round(results.MatchConfidence! * 10) / 10}%)\n${description}`)
+          } else {
+            setContent(time)
+          }
         } catch (error) {
           console.error(error)
           setContent(`${time} ${(error as Error).message}`)
@@ -85,7 +142,7 @@ const FaceRekognition = () => {
       }}>
         <Text
           style={{
-            fontSize: 50,
+            fontSize: 30,
             color: 'white',
             marginLeft: 20,
           }}
